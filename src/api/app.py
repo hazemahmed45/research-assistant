@@ -12,6 +12,9 @@ from pathlib import Path
 from fastapi import FastAPI, APIRouter
 from src.api.config import ApiSettings
 from src.api.routers.healthcheck_route import healthcheck_router
+from src.api.routers.compare_router import comp_doc_router
+from src.api.routers.similar_router import sim_doc_router
+from src.api.routers.summary_router import sum_doc_router
 
 
 def get_active_branch_name():
@@ -56,10 +59,9 @@ def create_app() -> FastAPI:
     **Router Inclusion**
 
     * **Healthcheck Router**: Always included
-    * **Complain Router**: Included if `deploy_complain` setting is True
-    * **ASR Router**: Included if `deploy_asr` setting is True
-    * **E2E Router**: Included if both `deploy_asr` and `deploy_complain` settings are True
-    * **Wakeup Router**: Included if `deploy_wakeup` setting is True
+    * **Summary Doc Router**: Always included
+    * **Compare Doc Router**: Always included
+    * **Similar Doc Router**: Always included
 
     :return: Configured FastAPI application instance
     :rtype: FastAPI
@@ -77,22 +79,10 @@ def create_app() -> FastAPI:
     )
     api_router = APIRouter(prefix=f"/{settings.main_route}")
     api_router.include_router(healthcheck_router)
-    if settings.deploy_complain:
-        from src.api.routers.complain_routes import complain_router
+    api_router.include_router(sum_doc_router)
+    api_router.include_router(comp_doc_router)
+    api_router.include_router(sim_doc_router)
 
-        api_router.include_router(complain_router)
-    if settings.deploy_asr:
-        from src.api.routers.asr_routes import asr_router
-
-        api_router.include_router(asr_router)
-    if settings.deploy_asr and settings.deploy_complain:
-        from src.api.routers.e2e_routes import e2e_router
-
-        api_router.include_router(e2e_router)
-    if settings.deploy_wakeup:
-        from src.api.routers.wakeup_routes import wakeup_router
-
-        api_router.include_router(wakeup_router)
     app.include_router(api_router)
 
     return app

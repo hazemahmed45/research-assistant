@@ -13,20 +13,24 @@ import loguru
 from loguru import logger
 
 from src.api.config import ApiSettings
-from src.api.schema import DocumentsSimilaritySchema
+from src.api.schema import (
+    DocumentsSimilarityOutputSchema,
+    DocumentsComparisonInputSchema,
+)
 from src.misc.logger_handlers import FileHandler
 from src.misc.create_unique_id import create_unique_user_id
 
 REQUEST_TYPE = "sim-doc"
 
 settings = ApiSettings()
-healthcheck_router = APIRouter()
+sim_doc_router = APIRouter()
 
 
-@healthcheck_router.get("/sim_doc", tags=["Similar Document"])
+@sim_doc_router.get("/sim_doc", tags=["Similar Document"])
 async def similar_doc(
+    schema: DocumentsComparisonInputSchema,
     background_tasks: BackgroundTasks,
-) -> DocumentsSimilaritySchema:
+) -> DocumentsSimilarityOutputSchema:
     """
     TODO docstring
     """
@@ -49,4 +53,4 @@ async def similar_doc(
 
     # TODO IMPLEMENT SIMILAR DOCUMENTS ROUTE
     background_tasks.add_task(session_logger.remove)
-    return DocumentsSimilaritySchema()
+    return DocumentsSimilarityOutputSchema()
