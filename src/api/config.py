@@ -16,8 +16,8 @@ class ApiSettings(BaseSettings):
     """
     Base settings for the API, including authentication, logging, and deployment configuration, settings gets read from .env file
 
-    :param huggingface_token: Hugging Face token for authentication
-    :type huggingface_token: str
+    :param llm_token: llm token for authentication
+    :type llm_token: str
     :param logdir: Path to the local logs directory (default: ``logs``)
     :type logdir: str
     :param api_host: API host (default: ``0.0.0.0``)
@@ -38,12 +38,10 @@ class ApiSettings(BaseSettings):
     * **extra**: Extra settings configuration (default: ``ignore``)
     """
 
-    huggingface_token: str = Field(description="huggingface token for authentication")
-
+    llm_token: str = Field(description="llm token for authentication")
     logdir: str = Field(default="logs", description="path of the logs directory")
     api_host: str = Field(default="0.0.0.0")
     api_port: int = Field(default=8000)
-    complain_route: str = "complain"
     main_route: str = "api"
     cache_dir: str | None = Field(default=None)
 

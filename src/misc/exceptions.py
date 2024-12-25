@@ -40,17 +40,17 @@ class UnsupportedFileTypeException(Exception):
     pass
 
 
-class ModelInferenceTypeNotSupported(Exception):
+class ModelServingTypeNotSupported(Exception):
     """
-    Raised when a model's inference type is not supported by the application.
+    Raised when a model's serving type is not supported by the application.
 
-    :param message: Optional error message describing the unsupported inference type.
+    :param message: Optional error message describing the unsupported serving type.
     :type message: str, optional
 
     **Usage:**
 
-    * Raise this exception when a model's specified inference type is incompatible with the system.
-    * Provide a descriptive error message detailing the unsupported inference type and possibly suggesting alternatives.
+    * Raise this exception when a model's specified serving type is incompatible with the system.
+    * Provide a descriptive error message detailing the unsupported serving type and possibly suggesting alternatives.
 
     """
 
