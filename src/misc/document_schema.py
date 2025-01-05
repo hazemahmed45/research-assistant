@@ -10,23 +10,23 @@ from __future__ import annotations
 from typing import List, Optional
 from datetime import date
 from uuid import uuid4
-from pydantic import UUID4, BaseModel, Field, AnyUrl
+from pydantic import BaseModel, Field, AnyUrl
 
 
 class DocumentStructureSchema(BaseModel):
     """Document attributes"""
 
-    id: UUID4 = Field(
-        default_factory=uuid4,
+    id: str = Field(
+        default="",
         description="the unique id of the paper",
     )
-    link: AnyUrl | None = Field(
+    link: str | None = Field(
         default=None,
         description="the url of the paper",
     )
     title: str = Field(
         default="",
-        description="the headline or name of the paper that concisely conveys the essence of the study",
+        description="the headline or name of the paper that concisely conveys the essence of the study, usually the heading of the study in the first lines",
     )
     publication_date: date | None = Field(
         default=None,
@@ -42,7 +42,7 @@ class DocumentStructureSchema(BaseModel):
     )
     authors_name: List[str] | None = Field(
         default="",
-        description="the individuals who have contributed significantly to the study. this should be listed as a list seperated by commas and finished by and endline.",
+        description="the individuals who have contributed significantly to the study. this should be listed as a list seperated by commas and finished by and endline. usually authors of a study is after the title",
     )
     domain: List[str] | None = Field(
         default=[],
@@ -98,5 +98,8 @@ if __name__ == "__main__":
     o = DocumentStructureSchema()
     print(o)
     o.model_fields["repo"] = "here"
-    print(o.model_fields["authors_name"].annotation == Optional[List[str]])
-    # print(o.model_fields)
+    print(
+        DocumentStructureSchema.model_fields["authors_name"].annotation
+        == Optional[List[str]]
+    )
+    print(o.repo)

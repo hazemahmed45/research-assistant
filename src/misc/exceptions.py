@@ -55,3 +55,37 @@ class ModelServingTypeNotSupported(Exception):
     """
 
     pass
+
+
+class ModelTypeNotSupported(Exception):
+    """
+    Raised when a model type is not supported by the application.
+
+    :param message: Optional error message describing the unsupported model type.
+    :type message: str, optional
+
+    **Usage:**
+
+    * Raise this exception when a model type is incompatible with the system.
+    * Provide a descriptive error message detailing the unsupported model type and possibly suggesting alternatives.
+
+    """
+
+    pass
+
+
+class VectorstoreTypeNotSupported(Exception):
+    """
+    Raised when a vectorstore type is not supported by the application.
+
+    :param message: Optional error message describing the unsupported vectorstore type.
+    :type message: str, optional
+
+    **Usage:**
+
+    * Raise this exception when a specified vectorstore type is incompatible with the system.
+    * Provide a descriptive error message detailing the unsupported serving type and possibly suggesting alternatives.
+
+    """
+
+    pass
