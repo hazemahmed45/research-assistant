@@ -12,48 +12,39 @@ import warnings
 from abc import abstractmethod
 from typing import Any, Optional, Union, List
 from enum import IntEnum
-
-# import json
 import time
+import datetime
 
-# from huggingface_hub import InferenceClient
+from dotenv import get_key as get_dotenv_key
 from huggingface_hub.errors import HfHubHTTPError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from transformers import pipeline
 from langchain_core.prompts import (
     PromptTemplate,
-    # FewShotPromptTemplate,
     # ChatPromptTemplate,
-    # FewShotChatMessagePromptTemplate,
 )
-
+from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 
-# from langchain_core.messages import SystemMessage
-# from langchain_core.prompt_values import StringPromptValue
-# from langchain_core.runnables import RunnableLambda
-# from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.language_models.base import BaseLanguageModel
 
-# from langchain_core.example_selectors import SemanticSimilarityExampleSelector
-from langchain_community.llms.vllm import VLLMOpenAI
 
-# from langchain_community.vectorstores.faiss import FAISS
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = get_dotenv_key(".env", "LLM_AUTH_TOKEN")
 from langchain_huggingface.llms import HuggingFaceEndpoint, HuggingFacePipeline
 
-# from langchain_huggingface.embeddings import HuggingFaceEmbeddings
-# from gradio_client import Client
+os.environ["OPENAI_API_KEY"] = get_dotenv_key(".env", "LLM_AUTH_TOKEN")
+from langchain_openai.llms import OpenAI
 
-from src.enums import LLMModelCards, LLMServingType
+from src.enums import LLMModelCards, LLMServingType, Constants
 from src.misc.document_schema import DocumentStructureSchema
 
-from src.misc.utils import remove_punctuations
+from src.misc.utils import remove_punctuations, remove_leading_endlines
 
 
 class DocumentAnalyizerSettings(BaseSettings):
     """
-    **Configuration settings for the Complain Recognition Model**
+    **Configuration settings for the Document Analyizer**
 
     :param llm_api_url: URL where the model is hosted.
     :type llm_api_url: str
@@ -83,10 +74,11 @@ class DocumentAnalyizerSettings(BaseSettings):
         default="https://api-inference.huggingface.co/models/",
         description="the url the model is hosted on",
     )
-    model_card: LLMModelCards = Field(
+    llm_model_card: LLMModelCards = Field(
         default=LLMModelCards.MISTRAL_7B_INSTRUCT_V02,
         description="the llm model card from huggingface hub",
     )
+    llm_auth_token: str = Field(default=None)
     max_new_tokens: int = Field(default=200)
     top_k: Union[float, None] = Field(default=None)
     top_p: Union[float, None] = Field(default=None)
@@ -94,7 +86,7 @@ class DocumentAnalyizerSettings(BaseSettings):
     num_return_sequences: int = Field(default=1)
     do_sample: bool = Field(default=True)
     max_time: Union[float, None] = Field(default=None)
-    serving_type: LLMServingType = Field(default=LLMServingType.HUGGINGFACE)
+    llm_serving_type: LLMServingType = Field(default=LLMServingType.HUGGINGFACE_API)
     prompt_preprocessing: bool = Field(default=True)
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -105,7 +97,7 @@ class DocumentAnalyizerSettings(BaseSettings):
     )
 
 
-class DocumentAnalyizer:
+class BaseDocumentAnalyizer:
     """
     **Abstract base class for document analyizer**
     """
@@ -115,12 +107,12 @@ class DocumentAnalyizer:
         pass
 
     @abstractmethod
-    def __call__(self, document_text: str) -> DocumentStructureSchema:
+    def __call__(self, doc_context: Document) -> DocumentStructureSchema:
         """
         **Process a document text**
 
-        :param document_text: The documenttext to process.
-        :type document_text: str
+        :param doc_context: The documenttext to process.
+        :type doc_context: str
         :return: Processed result.
         :rtype: DocumentStructureSchema
         :raises NotImplementedError: If not implemented in subclass.
@@ -128,7 +120,7 @@ class DocumentAnalyizer:
         raise NotImplementedError(f"__call__ is not implemented for {self.__class__}")
 
 
-class DocumentAnalyizerLLM(DocumentAnalyizer):
+class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
     """
     **document analyizer using a Large Language Model (LLM)**
 
@@ -137,18 +129,18 @@ class DocumentAnalyizerLLM(DocumentAnalyizer):
     """
 
     class PromptInputs(IntEnum):
-        CONTEXT = 0
-        QUESTION = 1
-        MOTIVATION = 2
-        PROBLEMS = 3
-        CHALLENGES = 4
-        CONTRIBUTION = 5
-        TECHNIQUES = 6
-        DATASETS = 7
-        METHODOLOGY = 8
-        PROPOSED_MODEL = 9
-        RESULTS = 10
-        FUTURE_WORK = 11
+        context = 0
+        question = 1
+        motivation = 2
+        problems = 3
+        challenges = 4
+        contribution = 5
+        techniques = 6
+        datasets = 7
+        methodology = 8
+        proposed_model = 9
+        results = 10
+        future_work = 11
 
     def __init__(
         self,
@@ -164,18 +156,26 @@ class DocumentAnalyizerLLM(DocumentAnalyizer):
         self._arg_parameters = {}
         self._prompt_preprocessing = prompt_preprocessing
 
-    def __call__(self, doc_context: str) -> DocumentStructureSchema:
+    def __call__(self, doc_context: Document) -> DocumentStructureSchema:
         """
         **Process a doc context using the LLM**
 
         :param doc_context: The doc context text.
-        :type doc_context: str
+        :type doc_context: Document
         :return: Processed result.
         :rtype: DocumentStructureSchema
         """
-        analized_document = DocumentStructureSchema()
+        analized_document_dict = {
+            "id": doc_context.metadata["id"],
+            "link": doc_context.metadata["source"],
+        }
+        # analized_document = DocumentStructureSchema(
+        #     id=doc_context.metadata["id"], link=doc_context.metadata["source"]
+        # )
         if self._prompt_preprocessing:
-            doc_context = remove_punctuations(doc_context, exclude=",.").lower()
+            doc_context.page_content = remove_punctuations(
+                doc_context.page_content, exclude=",."
+            ).lower()
         doc_attr_analyizer_chain = (
             self.get_prompt(is_attribute=True) | self.get_llm() | StrOutputParser()
         )
@@ -191,51 +191,70 @@ class DocumentAnalyizerLLM(DocumentAnalyizer):
 
                 analysis_res: str = doc_attr_analyizer_chain.invoke(
                     {
-                        self.get_inputs()[self.PromptInputs.CONTEXT.value]: doc_context,
-                        self.get_inputs()[self.PromptInputs.QUESTION.value]: question,
+                        self.get_inputs()[self.PromptInputs.context.value]: doc_context,
+                        self.get_inputs()[self.PromptInputs.question.value]: question,
                     }
                 )
+                analysis_res = remove_leading_endlines(analysis_res).strip()
                 if (
-                    analized_document.model_fields[attr_name].annotation
+                    DocumentStructureSchema.model_fields[attr_name].annotation
                     == Optional[List[str]]
                 ):
-                    analysis_res = analysis_res.split(",")
-                analized_document.model_fields[attr_name] = analysis_res
-        analized_document.summary = doc_summarizer_chain.invoke(
-            {
-                self.get_inputs()[
-                    self.PromptInputs.MOTIVATION.value
-                ]: analized_document.motivation,
-                self.get_inputs()[
-                    self.PromptInputs.PROBLEMS.value
-                ]: analized_document.problems,
-                self.get_inputs()[
-                    self.PromptInputs.CHALLENGES.value
-                ]: analized_document.challenges,
-                self.get_inputs()[
-                    self.PromptInputs.CONTRIBUTION.value
-                ]: analized_document.contribution,
-                self.get_inputs()[
-                    self.PromptInputs.TECHNIQUES.value
-                ]: analized_document.techniques,
-                self.get_inputs()[self.PromptInputs.DATASETS.value]: ", ".join(
-                    analized_document.datasets
-                ),
-                self.get_inputs()[
-                    self.PromptInputs.METHODOLOGY.value
-                ]: analized_document.methodology,
-                self.get_inputs()[
-                    self.PromptInputs.PROPOSED_MODEL.value
-                ]: analized_document.proposed_model,
-                self.get_inputs()[
-                    self.PromptInputs.RESULTS.value
-                ]: analized_document.results,
-                self.get_inputs()[
-                    self.PromptInputs.FUTURE_WORK.value
-                ]: analized_document.future_work,
-            }
+                    analysis_res = [
+                        item.strip()
+                        for item in (
+                            analysis_res.split("\n")[0]
+                            .replace("[", "")
+                            .replace("]", "")
+                            .split(",")
+                        )
+                    ]
+                analized_document_dict[attr_name] = analysis_res
+        analized_document_dict["publication_date"] = datetime.datetime.strptime(
+            analized_document_dict["publication_date"], Constants.DATE_FORMAT.value
         )
-        return analized_document
+        analized_document_dict["title"] = (
+            analized_document_dict["title"].split("\n")[0]
+        ).replace('"', "")
+        analized_document_dict["venue"] = analized_document_dict["venue"].split("\n")[0]
+        analized_document_dict["repo"] = analized_document_dict["repo"].split("\n")[0]
+        analized_document_dict["summary"] = remove_leading_endlines(
+            doc_summarizer_chain.invoke(
+                {
+                    self.get_inputs()[
+                        self.PromptInputs.motivation.value
+                    ]: analized_document_dict[self.PromptInputs.motivation.name],
+                    self.get_inputs()[
+                        self.PromptInputs.problems.value
+                    ]: analized_document_dict[self.PromptInputs.problems.name],
+                    self.get_inputs()[
+                        self.PromptInputs.challenges.value
+                    ]: analized_document_dict[self.PromptInputs.challenges.name],
+                    self.get_inputs()[
+                        self.PromptInputs.contribution.value
+                    ]: analized_document_dict[self.PromptInputs.contribution.name],
+                    self.get_inputs()[
+                        self.PromptInputs.techniques.value
+                    ]: analized_document_dict[self.PromptInputs.techniques.name],
+                    self.get_inputs()[self.PromptInputs.datasets.value]: ", ".join(
+                        analized_document_dict[self.PromptInputs.datasets.name]
+                    ),
+                    self.get_inputs()[
+                        self.PromptInputs.methodology.value
+                    ]: analized_document_dict[self.PromptInputs.methodology.name],
+                    self.get_inputs()[
+                        self.PromptInputs.proposed_model.value
+                    ]: analized_document_dict[self.PromptInputs.proposed_model.name],
+                    self.get_inputs()[
+                        self.PromptInputs.results.value
+                    ]: analized_document_dict[self.PromptInputs.results.name],
+                    self.get_inputs()[
+                        self.PromptInputs.future_work.value
+                    ]: analized_document_dict[self.PromptInputs.future_work.name],
+                }
+            )
+        )
+        return DocumentStructureSchema(**analized_document_dict)
 
     def get_llm(self) -> BaseLanguageModel:
         """
@@ -288,7 +307,7 @@ class DocumentAnalyizerLLM(DocumentAnalyizer):
             "problems",
             "challenges",
             "contribution",
-            "technqiues",
+            "techniques",
             "datasets",
             "methodology",
             "proposed_model",
@@ -598,9 +617,9 @@ class DocumentAnalyizerHuggingFaceAPILLM(DocumentAnalyizerAPILLM):
         return result
 
 
-class DocumentAnalyizerVLLMOpenAIAPILLM(DocumentAnalyizerAPILLM):
+class DocumentAnalyizerOpenAIAPILLM(DocumentAnalyizerAPILLM):
     """
-    **Utilizes LLMs hosted using VLLM inference server for document analyizer**
+    **Utilizes LLMs hosted using Openai inference server for document analyizer**
 
 
     :param llm_api_url: URL of the LLM API.
@@ -652,7 +671,7 @@ class DocumentAnalyizerVLLMOpenAIAPILLM(DocumentAnalyizerAPILLM):
         **kwargs,
     ) -> None:
         """
-        **Initializes VLLM instance for interactive document analyizer**
+        **Initializes Openai instance for interactive document analyizer**
 
         :param llm_api_url: URL of the LLM API.
         :type llm_api_url: str
@@ -703,7 +722,7 @@ class DocumentAnalyizerVLLMOpenAIAPILLM(DocumentAnalyizerAPILLM):
                 "presence_penalty": presence_penalty,
             }
         )
-        self.llm = VLLMOpenAI(
+        self.llm = OpenAI(
             base_url=llm_api_url,
             api_key=auth_token,
             model_name=model_name,
