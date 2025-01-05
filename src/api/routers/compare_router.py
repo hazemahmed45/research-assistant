@@ -19,15 +19,16 @@ from src.api.schema import (
 )
 from src.misc.logger_handlers import FileHandler
 from src.misc.create_unique_id import create_unique_user_id
+from src.enums import Constants
 
-REQUEST_TYPE = "comp-doc"
+# REQUEST_TYPE = "comp-doc"
 
 settings = ApiSettings()
 comp_doc_router = APIRouter()
 
 
-@comp_doc_router.get("/comp_doc", tags=["Compare Document"])
-async def similar_doc(
+@comp_doc_router.post("/comp_doc", tags=["Compare Document"])
+async def compare_doc(
     schema: DocumentsComparisonInputSchema,
     background_tasks: BackgroundTasks,
 ) -> DocumentsComparisonOutputSchema:
@@ -36,17 +37,18 @@ async def similar_doc(
     """
     request_unique_id: str = create_unique_user_id()
     session_logger: loguru.Logger = logger.bind(
-        user_unique_id=request_unique_id, request_type=REQUEST_TYPE
+        user_unique_id=request_unique_id,
+        request_type=Constants.COMPARE_DOCUMENTS_REQUEST_TYPE.value,
     )
     session_logger.remove()
     session_logger.add(
         sys.stderr,
-        format="<g>{time}</g> | <m>{level}</m> | <e>{name}:{function}:{line}</e> | REQUEST ID -> {extra[user_unique_id]} : {message}",
+        format=Constants.LOGGER_REQUEST_FORMAT.value,
     )
 
     session_logger.add(
         sink=FileHandler(user_unique_id=request_unique_id),
-        format="<g>{time}</g> | <m>{level}</m> | <e>{name}:{function}:{line}</e> | REQUEST ID -> {extra[user_unique_id]} : {message}",
+        format=Constants.LOGGER_REQUEST_FORMAT.value,
     )
 
     session_logger.info("Request Recieved")

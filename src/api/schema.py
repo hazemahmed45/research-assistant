@@ -9,15 +9,18 @@ Classes
 """
 
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AnyUrl
+from src.misc.document_schema import DocumentStructureSchema
 
 
 class DocumentSummaryInputSchema(BaseModel):
-    pass
+    link: AnyUrl = Field(description="link of the pdf of the paper")
 
 
 class DocumentSummaryOutputSchema(BaseModel):
-    pass
+    document_summary_extraction: DocumentStructureSchema = Field(
+        description="detailed summary extractions of the research paper"
+    )
 
 
 class DocumentsComparisonInputSchema(BaseModel):

@@ -16,8 +16,9 @@ from loguru import logger
 from src.api.config import ApiSettings
 from src.misc.logger_handlers import FileHandler
 from src.misc.create_unique_id import create_unique_user_id
+from src.enums import Constants
 
-REQUEST_TYPE = "healthcheck"
+# REQUEST_TYPE = "healthcheck"
 
 settings = ApiSettings()
 healthcheck_router = APIRouter()
@@ -53,17 +54,18 @@ async def healthcheck(
     """
     request_unique_id: str = create_unique_user_id()
     session_logger: loguru.Logger = logger.bind(
-        user_unique_id=request_unique_id, request_type=REQUEST_TYPE
+        user_unique_id=request_unique_id,
+        request_type=Constants.HEALTHCHECK_REQUEST_TYPE.value,
     )
     session_logger.remove()
     session_logger.add(
         sys.stderr,
-        format="<g>{time}</g> | <m>{level}</m> | <e>{name}:{function}:{line}</e> | REQUEST ID -> {extra[user_unique_id]} : {message}",
+        format=Constants.LOGGER_REQUEST_FORMAT.value,
     )
 
     session_logger.add(
         sink=FileHandler(user_unique_id=request_unique_id),
-        format="<g>{time}</g> | <m>{level}</m> | <e>{name}:{function}:{line}</e> | REQUEST ID -> {extra[user_unique_id]} : {message}",
+        format=Constants.LOGGER_REQUEST_FORMAT.value,
     )
 
     session_logger.info("Request Recieved")
