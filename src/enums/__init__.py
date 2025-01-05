@@ -9,6 +9,7 @@ Enums
 """
 
 from enum import Enum
+import os
 
 
 class LLMModelCards(Enum):
@@ -65,9 +66,48 @@ class LLMServingType(Enum):
 
     """
 
-    VLLM = "vllm"
+    OPENAI = "openai"
     HUGGINGFACE = "huggingface"
     HUGGINGFACE_API = "huggingface_api"
+
+
+class VectorstoreType(Enum):
+    CHROME = "chrome"
+    FAISS = "faiss"
+    REDIS = "redis"
+    QDRANT = "qdrant"
+
+
+class EmbeddingModelCards(Enum):
+    MODERNBERT = "answerdotai/ModernBERT-base"
+    MODERNBERT_EMBED = "nomic-ai/modernbert-embed-base"
+    ALL_MINILM_L6_V2 = "sentence-transformers/all-MiniLM-L6-v2"
+    ALL_MINILM_L12_V2 = "sentence-transformers/all-MiniLM-L12-v2"
+    STSB_ROBERTA_BASE_V2 = "sentence-transformers/stsb-roberta-base-v2"
+    ALL_MPNET_BASE_V2 = "sentence-transformers/all-mpnet-base-v2"
+
+
+class EmbeddingModelRunnerTypes(Enum):
+    HUGGINGFACE = "huggingface"
+    COHERE = "cohere"
+    OPENAI = "openai"
+
+
+class DatabaseTypes(Enum):
+    NOTION = "notion"
+    SQLITE = "sqlite"
+    SQL = "sql"
+    MONGODB = "mongodb"
+
+
+class Constants(Enum):
+    SUMMARIZE_DOCUMNET_REQUEST_TYPE = "sum-doc"
+    HEALTHCHECK_REQUEST_TYPE = "healthcheck"
+    SIMILAR_DOCUMENT_REQUEST_TYPE = "sim-doc"
+    COMPARE_DOCUMENTS_REQUEST_TYPE = "comp-doc"
+    SUMMARIZE_DOCUMNET_TAG = "Summarize Document"
+    LOGGER_REQUEST_FORMAT = "<g>{time}</g> | <m>{level}</m> | <e>{name}:{function}:{line}</e> | REQUEST ID -> {extra[user_unique_id]} : {message}"
+    DATE_FORMAT = "%d-%m-%Y"
 
 
 class TestStatus(Enum):
