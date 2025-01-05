@@ -1,0 +1,83 @@
+from enum import Enum
+import datetime
+
+
+t = datetime.datetime(2012, 2, 23, 0, 0)
+t.strftime("%m/%d/%Y")
+from pymongo import MongoClient
+from src.database.base_db import BaseDB
+from src.misc.document_schema import DocumentStructureSchema
+from src.enums import Constants
+
+
+class MongoDB(BaseDB):
+    class CollectionNames(Enum):
+        DOCUMENT_SUMMARIZATION_COLLECTION = "documents-summarization"
+
+    def __init__(
+        self,
+        mongodb_host: str = "localhost",
+        mongodb_port: str = "27017",
+        database_name: str = "research-papers-db",
+        username: str = None,
+        password: str = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.mongodb_host = mongodb_host
+        self.mongodb_port = mongodb_port
+        self.username = username
+        self.password = password
+        self.database_name = database_name
+        self.client = self.connect()
+
+    def connect(self, **kwargs) -> MongoClient:
+        connection_uri = f"mongodb://{self.username+':'+self.password+'@' if self.username is not None else ''}{self.mongodb_host}:{self.mongodb_port}/"
+        return MongoClient(connection_uri)
+
+    def push_document(self, document_structured_extraction: DocumentStructureSchema):
+        document_dict_dump = document_structured_extraction.model_dump()
+        document_dict_dump["publication_date"] = document_dict_dump[
+            "publication_date"
+        ].strftime(Constants.DATE_FORMAT.value)
+        self.client[self.database_name][
+            self.CollectionNames.DOCUMENT_SUMMARIZATION_COLLECTION.value
+        ].insert_one(document_dict_dump)
+        return
+
+
+if __name__ == "__main__":
+    mongodb = MongoDB()
+    document_extraction = DocumentStructureSchema(
+        **{
+            "id": "157442541877518785241780452408497469030",
+            "link": "https://arxiv.org/pdf/2010.10915",
+            "title": "Contrastive Self-Supervised Learning for Audio: COLA",
+            "publication_date": "2020-10-21",
+            "summary": "The research paper proposes a new self-supervised pretraining approach, named Contrastive Learning of Audio Representations (COLA), to learn a general-purpose representation of audio using contrastive learning. The authors argue that previous work on self-supervised learning for audio mainly focuses on speech tasks and ignores other audio tasks, and triplet-based methods heavily rely on the mining of negative samples, affecting the quality of learned features. COLA allows a large number of negatives for each positive pair in the loss function and bypasses the need for careful negative sample selection. COLA is evaluated on several downstream tasks, including speech, music, acoustic scenes, and animal sounds, and significantly outperforms previous unsupervised approaches on most tasks. The researchers also conducted ablation studies and released a library for pretraining and fine-tuning COLA models. The paper also discusses challenges and potential directions for future research, such as exploring other similarity measures, investigating the impact of batch sizes, and comparing self-supervised learning approaches for audio representation learning.",
+            "contribution": "The paper introduces COLA, a self-supervised pretraining approach for learning a general-purpose representation of audio using contrastive learning. COLA is built upon recent advances in contrastive learning for computer vision and reinforcement learning, and it allows for the consideration of a large number of negatives for each positive pair in the loss function, bypassing the need for careful negative example selection. The method significantly outperforms previous self-supervised systems and shows improvements on several downstream tasks, including speech, music, acoustic scenes, and animal sounds, demonstrating its transferability across audio domains and recording conditions. The ablation studies identify key design choices, and the library is released for pretraining and fine-tuning COLA models.",
+            "authors_name": ["Aaqib Saeed", "David Grangier", "Neil Zeghidour."],
+            "domain": ["audio", "sound"],
+            "motivation": "The motivation of the paper is to propose a new self-supervised pretraining approach, named Contrastive Learning of Audio Representations (COLA), for learning a general-purpose representation of audio. The authors argue that while self-supervised pretraining has emerged as a successful technique for learning beneficial representations in a wide range of tasks and modalities, most existing work on audio focuses on speech tasks and ignores other audio tasks such as acoustic scene detection or animal vocalizations. Additionally, triplet-based objectives heavily rely on the mining of negative samples, and the quality of learned features can vary significantly with the sample generation scheme. Therefore, the study aims to design a lightweight, easy-to-implement self-supervised model of audio that allows the consideration of a large number of negatives for each positive pair in the loss function and bypasses the need for a careful choice of negative examples, unlike triplet-based approaches. COLA is also different from other contrastive learning frameworks as it does not require a memory bank of distractors or predict future latent representations from past ones. The proposed approach is shown to be effective on a variety of downstream tasks, including speech, music, acoustic scenes, and animal sounds, and significantly outperforms previous unsupervised approaches on most tasks.",
+            "problems": "The paper aims to address the following issues in the field of self-supervised learning for audio:\n\n1. Most previous work in self-supervised learning for audio focuses on speech tasks, ignoring other audio tasks such as acoustic scene detection or animal vocalizations.\n2. Triplet-based objective functions heavily rely on the mining of negative samples, and the quality of learned features can vary significantly with the sample generation scheme.\n3. The simplicity and transferability of self-supervised learning algorithms for audio representation learning are still open research questions.\n\nThe authors propose cola (Contrastive Learning of Audio Representations) as a simple, efficient, and effective solution to these problems. Cola is based on contrastive learning, which learns a representation that assigns high similarity to audio segments extracted from the same recording while assigning lower similarity to segments from different recordings. It allows the consideration of a large number of negatives for each positive pair in the loss function and bypasses the need for careful choice of negative examples. Cola also does not rely on the mining of negative samples and is different from other self-supervised learning methods such as SimCLR and MoCo. The authors demonstrate the effectiveness of cola on several downstream tasks, including speech, music, acoustic scenes, and animal sounds.",
+            "challenges": "The paper mentioned some challenges that were faced during the study. These include the fact that most work on learning representations of audio focuses on speech tasks, ignoring other audio tasks such as acoustic scene detection or animal vocalizations. Additionally, triplet-based objectives heavily rely on the mining of negative samples, and the quality of learned features can vary significantly with the sample generation scheme. The authors addressed these challenges by proposing cola, a simple contrastive learning framework for learning general-purpose representations of sounds beyond speech. They built upon recent advances in contrastive learning for computer vision and reinforcement learning to design a lightweight, easy-to-implement self-supervised model of audio. They also conducted ablation studies to identify key design choices and released a library for pretraining and fine-tuning cola models.",
+            "techniques": "The paper used contrastive learning with a bilinear similarity measure for learning general-purpose audio representations. They also used multiclass cross entropy applied to similarities as the objective function, and trained their model with positive segment pairs sampled from the same audio clip, using one segment as the anchor and the other as the positive, while using the same pair as negatives for all other anchors in the batch. The authors experimented with batch sizes varying from 256 to 2048, and reported that a large batch size allowed the model to see many negative samples per anchor and helped accuracy on end tasks. They pretrained their models with Adam and a learning rate of 10−4 for 500 epochs, and trained the downstream classifiers with a batch size of 64 and a learning rate of 10−3 on randomly selected 960ms segments, but evaluated them on entire sequences using the average of predictions from nonoverlapping segments. The model architecture was based on efficientnetb0, which was used without any adjustment due to the 2d structure of mel filterbanks.",
+            "datasets": [
+                "'librispeech lbs'",
+                "'voxceleb'",
+                "'speech commands spc v1 and v2'",
+                "'tut urban acoustic scenes2018 tut'",
+                "'bsd dataset 30 from dcase 2018 challenge'",
+                "'musan'",
+                "'nsynth'",
+            ],
+            "methodology": "The paper proposes a method called Contrastive Learning of Audio Representations (COLA), which is a self-supervised pretraining approach for learning a general-purpose representation of audio. The method is based on contrastive learning and learns a representation that assigns high similarity to audio segments extracted from the same recording while assigning lower similarity to segments from different recordings.\n\nThe authors build on recent advances in contrastive learning for computer vision and reinforcement learning to design a lightweight, easy-to-implement self-supervised model of audio. They pretrain embeddings on the large-scale Audioset database and transfer these representations to 9 diverse classification tasks, including speech, music, animal sounds, and acoustic scenes.\n\nThe authors use unlabeled data to learn representations by pretraining a neural network with a contrastive loss function. The objective function maximizes agreement between the latent embedding of segments extracted from the same audio clip while using different audio clips as negative classes. The pretrained convolutional feature extractor is then combined with an additional classification layer for solving various audio understanding tasks across several datasets.\n\nThe similarity between audio segments is computed in two steps. First, an encoder maps logcompressed mel filterbanks into a latent representation, which is the representation that will be transferred to downstream classification, after pretraining. Then, a shallow neural network maps the latent representation onto a space where bilinear comparisons are performed. Bilinear comparisons are performed using the dot product of the latent representations.\n\nThe authors use multiclass cross entropy applied to similarities as the loss function, which leverages multiple distractors at a time. They train their model with positive segment pairs sampled from the same audio clip, and each pair uses one segment as the anchor and the other as the positive. The positive segments are used as negatives for all other anchors in the batch, which is more efficient than keeping a memory bank of negatives. They experiment with batch sizes varying from 256 to 2048 and report that a large batch size allows the model to see many negative samples per anchor and helps accuracy on end tasks. They sample segment pairs on-the-fly and reshuffle the data at each training epoch to maximize the diversity of positive and negative pairs seen during training.\n\nThe authors evaluate their method by pretraining cola embeddings on a large-scale audio dataset and then transferring it to downstream tasks by training a linear classifier on top of a frozen embedding, and by finetuning the entire network on the endtask. They assess the performance on several diverse datasets to determine the transferability of learned representations across audio domains and recording conditions. They report that cola embeddings outperform all previous methods, including a standard triplet loss, a u-dio 2",
+            "proposed_model": "The proposed model in the paper is called cola (contrastive learning for audio), which is a simple contrastive learning framework for learning general-purpose representations of sounds beyond speech. It is based on contrastive learning and generates similar pairs by sampling segments from the same audio clip and dissimilar pairs by associating segments from different clips in the same batch. The approach allows considering a large number of negatives for each positive pair in the loss function and bypasses the need for a careful choice of negative examples. It is different from other methods such as cpc and triplet-based approaches as it does not predict future latent representations from past ones and does not rely on negative sample mining and careful choice. The model is evaluated on several diverse downstream tasks, including speech, music, acoustic scenes, and animal sounds, and is shown to outperform challenging and diverse baselines.",
+            "results": "The study introduces COLA, a self-supervised pretraining approach for learning a general-purpose representation of audio using contrastive learning. COLA learns a representation that assigns high similarity to audio segments extracted from the same recording and lower similarity to segments from different recordings. The study builds on recent advances in contrastive learning for computer vision and reinforcement learning to design a lightweight, easy-to-implement self-supervised model of audio. The researchers pretrain embeddings on the large-scale Audioset database and transfer these representations to nine diverse classification tasks, including speech, music, animal sounds, and acoustic scenes. The results show that despite its simplicity, COLA significantly outperforms previous self-supervised systems on most tasks. The study also conducts ablation studies to identify key design choices and releases a library for pretraining and fine-tuning COLA models.",
+            "future_work": "Based on the current study, there are several potential directions for further research. One direction is to explore other similarity measures, such as cosine similarity, in contrastive learning for audio representation. The study shows that bilinear similarity outperforms cosine similarity on all downstream tasks, but it might be interesting to investigate the benefits and limitations of cosine similarity in the context of audio representation learning.\n\nAnother direction is to investigate the impact of different batch sizes on the performance of contrastive learning for audio representation. The study shows that a larger batch size provides better representations compared to smaller ones, but it is important to understand the optimal batch size for different audio tasks and recording conditions.\n\nAdditionally, the current study focuses on contrastive learning for audio representation learning, but it would be interesting to investigate other self-supervised learning approaches, such as generative models or autoencoders, for audio representation learning. It would also be valuable to compare the performance of these approaches on a wide range of audio tasks and recording conditions.\n\nFurthermore, the current study only evaluates the transferability of learned representations across a few audio domains and recording conditions. It would be interesting to investigate the transferability of learned representations across a wider range of audio domains and recording conditions, such as different genres of music, different languages, and different environments.\n\nFinally, the current study only considers contrastive learning for audio representation learning, but it would be interesting to investigate the application of contrastive learning to other modalities, such as images or text, and compare the performance of these models across different modalities.",
+            "venue": "The research paper is disseminated through Arxiv.org.",
+            "repo": "<https://github.com/google-research/google-research>",
+        }
+    )
+
+    mongodb.push_document(document_structured_extraction=document_extraction)
