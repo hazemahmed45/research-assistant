@@ -31,19 +31,20 @@ def remove_punctuations(s: str, exclude: Union[List[str], str, None] = None) -> 
     return s
 
 
-def merge_documents(documents: List[Document]) -> Document:
+def merge_pages_in_document(document_pages: List[Document]) -> Document:
     merged_page_content = ""
     merged_metadata: Dict[str, str] = {}
-    for doc in documents:
+    for doc in document_pages:
         merged_page_content += doc.page_content
 
         merged_metadata = {**merged_metadata, **doc.metadata}
     if "page" in merged_metadata.keys():
         merged_metadata["pages"] = merged_metadata.pop("page")
-    merged_metadata["id"] = create_unique_id_from_str(merged_metadata["source"])
 
     merged_document = Document(
-        page_content=merged_page_content, metadata=merged_metadata
+        page_content=merged_page_content,
+        metadata=merged_metadata,
+        id=create_unique_id_from_str(merged_metadata["source"]),
     )
     return merged_document
 

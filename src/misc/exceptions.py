@@ -74,6 +74,23 @@ class ModelTypeNotSupported(Exception):
     pass
 
 
+class DatabaseTypeNotSupported(Exception):
+    """
+    Raised when a database type is not supported by the application.
+
+    :param message: Optional error message describing the unsupported database type.
+    :type message: str, optional
+
+    **Usage:**
+
+    * Raise this exception when a database type is incompatible with the system.
+    * Provide a descriptive error message detailing the unsupported database type and possibly suggesting alternatives.
+
+    """
+
+    pass
+
+
 class VectorstoreTypeNotSupported(Exception):
     """
     Raised when a vectorstore type is not supported by the application.

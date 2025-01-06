@@ -35,4 +35,4 @@ def create_unique_id_from_str(string: str) -> str:
 
 
 if __name__ == "__main__":
-    print(create_unique_id_from_str("https://arxiv.org/pdf/2010.10915"))
+    print(create_unique_id_from_str("https://arxiv.org/pdf/2101.04792"))

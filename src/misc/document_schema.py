@@ -7,10 +7,31 @@ This module provides functions to generate schema representations, create compla
 """
 
 from __future__ import annotations
-from typing import List, Optional
+from typing import List, Optional, Union
+from typing_extensions import Annotated
+import datetime
 from datetime import date
-from uuid import uuid4
 from pydantic import BaseModel, Field, AnyUrl
+from pydantic.functional_serializers import PlainSerializer
+from pydantic.functional_validators import PlainValidator
+from src.enums import Constants
+
+
+def url_serializer_fn(x: AnyUrl) -> str:
+    return str(x)
+
+
+def date_serializer_fn(x: date) -> str:
+    return x.strftime(Constants.DATE_FORMAT.value)
+
+
+def date_validator_fn(x: Union[str, date]) -> date | None:
+    if isinstance(x, str):
+        return datetime.datetime.strptime(x, Constants.DATE_FORMAT.value)
+    elif isinstance(x, date):
+        return x
+    else:
+        return None
 
 
 class DocumentStructureSchema(BaseModel):
@@ -20,7 +41,9 @@ class DocumentStructureSchema(BaseModel):
         default="",
         description="the unique id of the paper",
     )
-    link: str | None = Field(
+    link: (
+        Annotated[AnyUrl, PlainSerializer(url_serializer_fn, return_type=str)] | None
+    ) = Field(
         default=None,
         description="the url of the paper",
     )
@@ -28,7 +51,14 @@ class DocumentStructureSchema(BaseModel):
         default="",
         description="the headline or name of the paper that concisely conveys the essence of the study, usually the heading of the study in the first lines",
     )
-    publication_date: date | None = Field(
+    publication_date: (
+        Annotated[
+            date,
+            PlainSerializer(date_serializer_fn, return_type=str),
+            PlainValidator(date_validator_fn),
+        ]
+        | None
+    ) | None = Field(
         default=None,
         description="the date were the paper is officially published, this should be formated as follows DD-MM-YYYY",
     )
@@ -46,7 +76,7 @@ class DocumentStructureSchema(BaseModel):
     )
     domain: List[str] | None = Field(
         default=[],
-        description="the domain of the paper, which identify the specific area or field of study to which the research belongs. It represents the subject matter, discipline, or context in which the research is conducted and where it contributes new knowledge. this should be listed as a list seperated by commas and finished by and endline",
+        description="the domain of the paper, which identify the specific area or field of study to which the research belongs. It represents the subject matter, discipline, or context in which the research is conducted and where it contributes new knowledge.usally the domain and tags of the study can be extracted or directly specified in the abstraction, also this should be listed as a list seperated by commas and finished by and endline",
     )
     motivation: str | None = Field(
         default="",
