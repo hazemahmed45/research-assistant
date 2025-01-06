@@ -72,7 +72,7 @@ class LLMServingType(Enum):
 
 
 class VectorstoreType(Enum):
-    CHROME = "chrome"
+    CHROME = "chroma"
     FAISS = "faiss"
     REDIS = "redis"
     QDRANT = "qdrant"
