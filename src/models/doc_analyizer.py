@@ -166,12 +166,10 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
         :rtype: DocumentStructureSchema
         """
         analized_document_dict = {
-            "id": doc_context.metadata["id"],
+            "id": doc_context.id,
             "link": doc_context.metadata["source"],
         }
-        # analized_document = DocumentStructureSchema(
-        #     id=doc_context.metadata["id"], link=doc_context.metadata["source"]
-        # )
+
         if self._prompt_preprocessing:
             doc_context.page_content = remove_punctuations(
                 doc_context.page_content, exclude=",."
@@ -206,12 +204,15 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
                             analysis_res.split("\n")[0]
                             .replace("[", "")
                             .replace("]", "")
+                            .replace('"', "")
+                            .replace("'", "")
                             .split(",")
                         )
                     ]
                 analized_document_dict[attr_name] = analysis_res
         analized_document_dict["publication_date"] = datetime.datetime.strptime(
-            analized_document_dict["publication_date"], Constants.DATE_FORMAT.value
+            analized_document_dict["publication_date"].split("\n")[0].replace(".", ""),
+            Constants.DATE_FORMAT.value,
         )
         analized_document_dict["title"] = (
             analized_document_dict["title"].split("\n")[0]
