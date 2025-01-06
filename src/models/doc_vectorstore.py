@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from enum import Enum
 from json import load
+from re import S
 from typing import Any, Dict, List, Union, Optional
 import os
 import shutil
@@ -11,6 +12,7 @@ from pydantic import Field
 from langchain_core.vectorstores import VectorStore
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
+
 from langchain_chroma.vectorstores import Chroma
 from langchain_community.docstore import InMemoryDocstore
 from langchain_community.vectorstores.utils import DistanceStrategy
@@ -18,6 +20,7 @@ from langchain_community.vectorstores.utils import DistanceStrategy
 from src.misc.document_schema import DocumentStructureSchema
 from src.enums import VectorstoreType
 from src.models.doc_embedder import BaseDocumentEmbedder
+from src.misc.create_unique_id import create_unique_id_from_str
 
 
 class VectorstoreSettings(BaseSettings):
@@ -90,13 +93,13 @@ class BaseVectorstore:
 
     def retrieve_similar_docs(
         self,
-        document: str,
+        document: Document,
         topk=10,
         metadata: Dict[str, Any] = None,
     ) -> List[str]:
         retrieved_results: List[tuple[Document, float]] = (
             self._vector_store.similarity_search_with_score(
-                query=document, k=topk, filter=metadata
+                query=document.page_content, k=topk, filter=metadata
             )
         )
 
@@ -106,6 +109,11 @@ class BaseVectorstore:
             if score < self.distance_threshold and score != 0.0
         ]
 
+    def get_docs_by_ids(self, doc_ids: Union[str, List[str]]) -> List[Document]:
+        if isinstance(doc_ids, str):
+            doc_ids = [doc_ids]
+        return self._vector_store.get_by_ids(doc_ids)
+
     def add_document(
         self,
         documents: Union[List[Document], Document],
@@ -113,30 +121,40 @@ class BaseVectorstore:
         if isinstance(documents, Document):
             documents = [documents]
 
-        uuids = [str(uuid4()) for _ in range(len(documents))]
+        doc_ids = [d.id for d in documents]
 
-        self._vector_store.add_documents(documents=documents, ids=uuids)
-        return uuids
+        found_doc_ids = [doc.id for doc in self.get_docs_by_ids(doc_ids)]
+
+        filtered_documents = [doc for doc in documents if doc.id not in found_doc_ids]
+        filtered_doc_ids = [doc.id for doc in filtered_documents]
+        if len(filtered_documents) > 0:
+            self._vector_store.add_documents(
+                documents=filtered_documents, ids=filtered_doc_ids
+            )
+        return filtered_doc_ids
 
     def add_structured_document(self, structured_document: DocumentStructureSchema):
-        structured_document_uuids = {}
-        for tag in self.FilterDocumentStructureTags:
-            structured_document_uuids[tag.value] = self.add_document(
-                Document(
-                    page_content=structured_document.challenges,
-                    metadata={
-                        self.FilterMetadataKeys.SOURCE.value: str(
-                            structured_document.link
-                        ),
-                        self.FilterMetadataKeys.TAG.value: tag.value,
-                    },
-                    id=structured_document.id,
-                )
-            )[0]
-        assert len(structured_document_uuids.keys()) == len(
-            list(self.FilterDocumentStructureTags)
-        ), "document structured extractions was not all inserted successfully in the vectorstore"
-        return structured_document_uuids
+        structured_docs: List[Document] = [
+            Document(
+                page_content=structured_document.challenges,
+                metadata={
+                    self.FilterMetadataKeys.SOURCE.value: str(structured_document.link),
+                    self.FilterMetadataKeys.TAG.value: tag.value,
+                },
+                id=create_unique_id_from_str(
+                    str(structured_document.link) + f"_{tag.value}"
+                ),
+            )
+            for tag in self.FilterDocumentStructureTags
+        ]
+        structured_document_ids = {
+            doc_id: doc.metadata[self.FilterMetadataKeys.TAG.value]
+            for doc_id, doc in zip(
+                self.add_document(documents=structured_docs), structured_docs
+            )
+        }
+
+        return structured_document_ids
 
     def get_document_embedder(self) -> BaseDocumentEmbedder:
         return self._document_embedder
@@ -175,6 +193,21 @@ class ChromaVectorstore(BaseVectorstore):
             persist_directory=self.persist_directory,
         )
 
+    def get_docs_by_ids(self, doc_ids: Union[List[str], str]) -> List[Document]:
+        if isinstance(doc_ids, str):
+            doc_ids = [doc_ids]
+        doc_list: List[Document] = []
+        retrieved_dict = self._vector_store.get(ids=doc_ids)
+        for doc_id, doc_content, doc_metadata in zip(
+            retrieved_dict["ids"],
+            retrieved_dict["documents"],
+            retrieved_dict["metadatas"],
+        ):
+            doc_list.append(
+                Document(page_content=doc_content, metadata=doc_metadata, id=doc_id)
+            )
+        return doc_list
+
     def save_vectorstore(self):
         pass
         return
@@ -205,7 +238,7 @@ class FaissVectorStore(BaseVectorstore):
             index=faiss.IndexFlatL2(
                 len(self.get_document_embedder().embed_documents("hello world")[0])
             ),
-            embedding_function=self.get_document_embedder(),
+            embedding_function=self.get_document_embedder().embedding_model,
             docstore=InMemoryDocstore(),
             index_to_docstore_id={},
             normalize_L2=True,
