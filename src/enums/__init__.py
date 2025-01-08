@@ -108,6 +108,23 @@ class Constants(Enum):
     SUMMARIZE_DOCUMNET_TAG = "Summarize Document"
     LOGGER_REQUEST_FORMAT = "<g>{time}</g> | <m>{level}</m> | <e>{name}:{function}:{line}</e> | REQUEST ID -> {extra[user_unique_id]} : {message}"
     DATE_FORMAT = "%d-%m-%Y"
+    ALTERNATIVE_DATE_FORMAT = "%Y-%m-%d"
+
+
+class SimilarityCategories(Enum):
+    PUBLICATION_DATE = "publication_date"
+    SUMMARY = "summary"
+    CONTRIBUTION = "contribution"
+    DOMAIN = "domain"
+    MOTIVATION = "motivation"
+    PROBLEMS = "problems"
+    CHALLENGES = "challenges"
+    TECHNIQUES = "techniques"
+    DATASETS = "datasets"
+    METHODOLOGY = "methodology"
+    PROPOSED_MODEL = "proposed_model"
+    RESULTS = "results"
+    FUTURE_WORK = "future_work"
 
 
 class TestStatus(Enum):

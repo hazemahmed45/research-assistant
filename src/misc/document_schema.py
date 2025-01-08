@@ -43,10 +43,7 @@ class DocumentStructureSchema(BaseModel):
     )
     link: (
         Annotated[AnyUrl, PlainSerializer(url_serializer_fn, return_type=str)] | None
-    ) = Field(
-        default=None,
-        description="the url of the paper",
-    )
+    ) = Field(default=None, description="the url of the paper")
     title: str = Field(
         default="",
         description="the headline or name of the paper that concisely conveys the essence of the study, usually the heading of the study in the first lines",
@@ -125,11 +122,11 @@ class DocumentStructureSchema(BaseModel):
 
 
 if __name__ == "__main__":
-    o = DocumentStructureSchema()
-    print(o)
-    o.model_fields["repo"] = "here"
-    print(
-        DocumentStructureSchema.model_fields["authors_name"].annotation
-        == Optional[List[str]]
-    )
-    print(o.repo)
+    o = DocumentStructureSchema(repo="HERE")
+    # print(o)
+    # o.model_fields["repo"] = "here"
+    # print(
+    #     DocumentStructureSchema.model_fields["authors_name"].annotation
+    #     == Optional[List[str]]
+    # )
+    print(o.model_dump()["repo"])

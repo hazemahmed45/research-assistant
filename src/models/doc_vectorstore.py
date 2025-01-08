@@ -96,17 +96,17 @@ class BaseVectorstore:
         document: Document,
         topk=10,
         metadata: Dict[str, Any] = None,
-    ) -> List[str]:
+    ) -> List[Document]:
         retrieved_results: List[tuple[Document, float]] = (
-            self._vector_store.similarity_search_with_score(
+            self._vector_store.similarity_search(
                 query=document.page_content, k=topk, filter=metadata
             )
         )
-
+        # print("HERE", retrieved_results)
         return [
-            res.page_content
-            for res, score in retrieved_results
-            if score < self.distance_threshold and score != 0.0
+            similar_doc
+            for similar_doc in retrieved_results
+            # if score < self.distance_threshold and score != 0.0
         ]
 
     def get_docs_by_ids(self, doc_ids: Union[str, List[str]]) -> List[Document]:

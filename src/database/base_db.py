@@ -42,3 +42,18 @@ class BaseDB:
         raise NotImplementedError(
             "retrieve documents is not implemented in base database class"
         )
+
+    @abstractmethod
+    def get_structured_document_by_id(
+        self, document_id: int
+    ) -> DocumentStructureSchema:
+        raise NotImplementedError(
+            "get structured document by id is not implemented in base database class"
+        )
+
+    def get_structured_document_by_link(
+        self, document_link: str
+    ) -> DocumentStructureSchema:
+        raise NotImplementedError(
+            "get structured document by link is not implemented in base database class"
+        )

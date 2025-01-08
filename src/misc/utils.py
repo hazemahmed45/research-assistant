@@ -42,7 +42,7 @@ def merge_pages_in_document(document_pages: List[Document]) -> Document:
         merged_metadata["pages"] = merged_metadata.pop("page")
 
     merged_document = Document(
-        page_content=merged_page_content,
+        page_content=merged_page_content.encode(encoding="utf-8", errors="replace"),
         metadata=merged_metadata,
         id=create_unique_id_from_str(merged_metadata["source"]),
     )

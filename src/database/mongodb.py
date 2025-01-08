@@ -1,6 +1,6 @@
 from enum import Enum
 import datetime
-from typing import List
+from typing import Any, Dict, List, Union
 
 from pymongo import MongoClient
 from pymongo.cursor import Cursor
@@ -106,6 +106,25 @@ class MongoDB(BaseDB):
                 for document_dict_dump in document_list_retrieved
             ]
         return documents_structure_extraction
+
+    def get_structured_document_by_id(
+        self, document_id: int
+    ) -> Union[DocumentStructureSchema, None]:
+        document_dict_retrieved: Dict[str, Any] = self.client[self.database_name][
+            self.CollectionNames.DOCUMENT_SUMMARIZATION_COLLECTION.value
+        ].find_one(filter={"id": document_id})
+        print(document_dict_retrieved)
+        if document_dict_retrieved == None:
+            return document_dict_retrieved
+        else:
+            return DocumentStructureSchema(**document_dict_retrieved)
+
+    def get_structured_document_by_link(
+        self, document_link: str
+    ) -> DocumentStructureSchema:
+        return self.get_structured_document_by_id(
+            create_unique_id_from_str(document_link)
+        )
 
 
 if __name__ == "__main__":

@@ -69,6 +69,9 @@ class BaseDocumentEmbedder:
 
         return self.embedding_model.embed_documents(documents)
 
+    def embed_query(self, query: str):
+        return self.embedding_model.embed_query(text=query)
+
     @abstractmethod
     def build_embedding_model(self) -> Embeddings:
         raise NotImplementedError(
