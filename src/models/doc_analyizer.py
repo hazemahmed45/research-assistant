@@ -174,107 +174,7 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
         :return: Processed result.
         :rtype: DocumentStructureSchema
         """
-        # analized_document_dict = {
-        #     "id": doc_context.id,
-        #     "link": doc_context.metadata["source"],
-        # }
 
-        # if self._prompt_preprocessing:
-        #     doc_context.page_content = remove_punctuations(
-        #         doc_context.page_content, exclude=",."
-        #     ).lower()
-        # doc_attr_analyizer_chain = (
-        #     self.get_prompt(is_attribute=True) | self.get_llm() | StrOutputParser()
-        # )
-        # doc_summarizer_chain = (
-        #     self.get_prompt(is_attribute=False) | self.get_llm() | StrOutputParser()
-        # )
-        # for attr_name, attr_metadata in DocumentStructureSchema.model_json_schema()[
-        #     "properties"
-        # ].items():
-        #     if not any([attr_name == key for key in ["id", "link", "summary"]]):
-        #         attr_desc = attr_metadata["description"]
-        #         question = "provide me with " + attr_desc
-
-        #         analysis_res: str = doc_attr_analyizer_chain.invoke(
-        #             {
-        #                 self.get_inputs()[self.PromptInputs.context.value]: doc_context,
-        #                 self.get_inputs()[self.PromptInputs.question.value]: question,
-        #             }
-        #         )
-        #         analysis_res = remove_leading_endlines(analysis_res).strip()
-        #         if (
-        #             DocumentStructureSchema.model_fields[attr_name].annotation
-        #             == Optional[List[str]]
-        #         ):
-        #             analysis_res = [
-        #                 item.strip()
-        #                 for item in (
-        #                     analysis_res.split("\n")[0]
-        #                     .replace("[", "")
-        #                     .replace("]", "")
-        #                     .replace('"', "")
-        #                     .replace("'", "")
-        #                     .split(",")
-        #                 )
-        #             ]
-        #         analized_document_dict[attr_name] = analysis_res
-        # try:
-        #     analized_document_dict["publication_date"] = datetime.datetime.strptime(
-        #         analized_document_dict["publication_date"]
-        #         .split("\n")[0]
-        #         .replace(".", ""),
-        #         Constants.DATE_FORMAT.value,
-        #     )
-        # except:
-        #     analized_document_dict["publication_date"] = datetime.datetime.strptime(
-        #         analized_document_dict["publication_date"]
-        #         .split("\n")[0]
-        #         .replace(".", ""),
-        #         Constants.ALTERNATIVE_DATE_FORMAT.value,
-        #     )
-        # analized_document_dict["title"] = (
-        #     analized_document_dict["title"].split("\n")[0]
-        # ).replace('"', "")
-        # analized_document_dict["venue"] = analized_document_dict["venue"].split("\n")[0]
-        # analized_document_dict["repo"] = analized_document_dict["repo"].split("\n")[0]
-        # analized_document_dict["summary"] = remove_leading_endlines(
-        #     doc_summarizer_chain.invoke(
-        #         {
-        #             self.get_inputs()[
-        #                 self.PromptInputs.motivation.value
-        #             ]: analized_document_dict[self.PromptInputs.motivation.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.problems.value
-        #             ]: analized_document_dict[self.PromptInputs.problems.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.challenges.value
-        #             ]: analized_document_dict[self.PromptInputs.challenges.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.contribution.value
-        #             ]: analized_document_dict[self.PromptInputs.contribution.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.techniques.value
-        #             ]: analized_document_dict[self.PromptInputs.techniques.name],
-        #             self.get_inputs()[self.PromptInputs.datasets.value]: ", ".join(
-        #                 analized_document_dict[self.PromptInputs.datasets.name]
-        #             ),
-        #             self.get_inputs()[
-        #                 self.PromptInputs.methodology.value
-        #             ]: analized_document_dict[self.PromptInputs.methodology.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.proposed_model.value
-        #             ]: analized_document_dict[self.PromptInputs.proposed_model.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.results.value
-        #             ]: analized_document_dict[self.PromptInputs.results.name],
-        #             self.get_inputs()[
-        #                 self.PromptInputs.future_work.value
-        #             ]: analized_document_dict[self.PromptInputs.future_work.name],
-        #         }
-        #     )
-        # )
-        # return DocumentStructureSchema(**analized_document_dict)
         if task == self.AnalyizingTask.SUMMARY:
             return self.summarize_task(doc_context=doc_context)
         elif task == self.AnalyizingTask.SIMILAR:
@@ -294,7 +194,7 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
             "This function is to be implemented in a more concrete class"
         )
 
-    def get_prompt(self, is_attribute: bool = True) -> PromptTemplate:
+    def get_prompt(self, prompt_prefix: str, prompt_suffix: str) -> PromptTemplate:
         """
         **Get the prompt template for the LLM**
 
@@ -303,27 +203,39 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
         """
 
         return PromptTemplate.from_template(
-            template=f"{self.get_prompt_prefix(is_attribute=is_attribute)}\
-                {self.get_prompt_suffix(is_attribute=is_attribute)}",
+            template=f"{prompt_prefix}\n{prompt_suffix}",
             template_format="jinja2",
         )
 
-    def get_prompt_prefix(self, is_attribute: bool = True) -> str:
-        if is_attribute:
-            return "you are an expert data analyizer and you are instructed to extract the answer for following question given the following context\n\n"
-        else:
-            return "you are an expert data analyizer and you are instructed to summarize all the following contexts of a research paper in one paragraph summarizing all the important information\n\n"
+    def get_summary_subsection_prompt_prefix(self):
+        return "you are an expert data analyizer and you are instructed to extract the answer for following question given the following context\n\n"
 
-    def get_prompt_suffix(self, is_attribute: bool = True) -> str:
-        if is_attribute:
-            return "##########################\ncontext: {{context}}\n\nquestion: {{question}}\n##########################\nextracted answer: "
-        else:
-            return "##########################\nmotivation: {{motivation}}\n\n\
-            problems: {{problems}}\n\nchallenges: {{challenges}}\n\n\
-                contribution: {{contribution}}\n\ntechniques: {{techniques}}\n\n\
-                    datasets: {{datasets}}\n\nmethodology: {{methodology}}\n\n\
-                        proposed model: {{proposed_model}}\n\nresults: {{results}}\n\n\
-                            future work: {{future_work}}\n##########################\nsummary: "
+    def get_summary_all_section_prompt_prefix(self):
+        return "you are an expert data analyizer and you are instructed to summarize all the following contexts of a research paper in one paragraph summarizing all the important information\n\n"
+
+    def get_summary_subsection_prompt_suffix(self):
+        return """
+##########################
+context: {{context}}
+question: {{question}}
+##########################
+extracted answer: """
+
+    def get_summary_all_section_prompt_suffix(self):
+        return """
+###########################
+motivation: {{motivation}}
+problems: {{problems}}
+challenges: {{challenges}}
+contribution: {{contribution}}
+techniques: {{techniques}}
+datasets: {{datasets}}
+methodology: {{methodology}}
+proposed model: {{proposed_model}}
+results: {{results}}
+future work: {{future_work}}
+##########################
+summary: """
 
     def get_inputs(self) -> List[str]:
         return [
@@ -360,17 +272,27 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
                 doc_context.page_content, exclude=",."
             ).lower()
         doc_attr_analyizer_chain = (
-            self.get_prompt(is_attribute=True) | self.get_llm() | StrOutputParser()
+            self.get_prompt(
+                prompt_prefix=self.get_summary_subsection_prompt_prefix(),
+                prompt_suffix=self.get_summary_subsection_prompt_suffix(),
+            )
+            | self.get_llm()
+            | StrOutputParser()
         )
         doc_summarizer_chain = (
-            self.get_prompt(is_attribute=False) | self.get_llm() | StrOutputParser()
+            self.get_prompt(
+                prompt_prefix=self.get_summary_all_section_prompt_prefix(),
+                prompt_suffix=self.get_summary_all_section_prompt_prefix(),
+            )
+            | self.get_llm()
+            | StrOutputParser()
         )
         for attr_name, attr_metadata in DocumentStructureSchema.model_json_schema()[
             "properties"
         ].items():
             if not any([attr_name == key for key in ["id", "link", "summary"]]):
                 attr_desc = attr_metadata["description"]
-                question = "provide me with " + attr_desc
+                question = self.construct_analysis_question(description=attr_desc)
 
                 analysis_res: str = doc_attr_analyizer_chain.invoke(
                     {
@@ -391,24 +313,35 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
                             .replace("]", "")
                             .replace('"', "")
                             .replace("'", "")
+                            .replace(".", "")
                             .split(",")
                         )
                     ]
                 analized_document_dict[attr_name] = analysis_res
         try:
-            analized_document_dict["publication_date"] = datetime.datetime.strptime(
-                analized_document_dict["publication_date"]
-                .split("\n")[0]
-                .replace(".", ""),
-                Constants.DATE_FORMAT.value,
-            )
+            try:
+                analized_document_dict["publication_date"] = datetime.datetime.strptime(
+                    analized_document_dict["publication_date"]
+                    .split("\n")[0]
+                    .replace(".", ""),
+                    Constants.DATE_FORMAT.value,
+                )
+            except Exception:
+                warnings.warn(
+                    f"could not parse publication date to {Constants.DATE_FORMAT.value} format"
+                )
+                analized_document_dict["publication_date"] = datetime.datetime.strptime(
+                    analized_document_dict["publication_date"]
+                    .split("\n")[0]
+                    .replace(".", ""),
+                    Constants.ALTERNATIVE_DATE_FORMAT.value,
+                )
+
         except:
-            analized_document_dict["publication_date"] = datetime.datetime.strptime(
-                analized_document_dict["publication_date"]
-                .split("\n")[0]
-                .replace(".", ""),
-                Constants.ALTERNATIVE_DATE_FORMAT.value,
+            warnings.warn(
+                f"could not parse publication date to {Constants.ALTERNATIVE_DATE_FORMAT.value} format, will set it to none"
             )
+            analized_document_dict["publication_date"] = None
         analized_document_dict["title"] = (
             analized_document_dict["title"].split("\n")[0]
         ).replace('"', "")
@@ -457,6 +390,9 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
 
     def compare_task(self, doc_context: Document):
         return
+
+    def construct_analysis_question(self, description: str) -> str:
+        return "provide me with " + description
 
 
 class DocumentAnalyizerPipelineLLM(DocumentAnalyizerLLM):
