@@ -113,7 +113,6 @@ class MongoDB(BaseDB):
         document_dict_retrieved: Dict[str, Any] = self.client[self.database_name][
             self.CollectionNames.DOCUMENT_SUMMARIZATION_COLLECTION.value
         ].find_one(filter={"id": document_id})
-        print(document_dict_retrieved)
         if document_dict_retrieved == None:
             return document_dict_retrieved
         else:

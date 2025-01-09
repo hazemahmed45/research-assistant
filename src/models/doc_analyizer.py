@@ -112,7 +112,9 @@ class BaseDocumentAnalyizer:
         pass
 
     @abstractmethod
-    def __call__(self, doc_context: Document) -> DocumentStructureSchema:
+    def __call__(
+        self, doc_context: Document, task: BaseDocumentAnalyizer.AnalyizingTask
+    ) -> DocumentStructureSchema:
         """
         **Process a document text**
 
@@ -213,6 +215,9 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
     def get_summary_all_section_prompt_prefix(self):
         return "you are an expert data analyizer and you are instructed to summarize all the following contexts of a research paper in one paragraph summarizing all the important information\n\n"
 
+    def get_similarize_prompt_prefix(self):
+        return "you are an expert data analyizer and you are instructed to summarize the similarities from the following paragraphs of the context and generate a paragraph illustrating the similarities\n\n"
+
     def get_summary_subsection_prompt_suffix(self):
         return """
 ##########################
@@ -236,6 +241,16 @@ results: {{results}}
 future work: {{future_work}}
 ##########################
 summary: """
+
+    def get_similarize_prompt_suffix(self):
+        return """
+##########################
+context: {{context}}
+##########################
+similarities summarization: """
+
+    def construct_analysis_question(self, description: str) -> str:
+        return "provide me with " + description
 
     def get_inputs(self) -> List[str]:
         return [
@@ -261,7 +276,7 @@ summary: """
         """
         self._arg_parameters = kwargs
 
-    def summarize_task(self, doc_context: Document):
+    def summarize_task(self, doc_context: Document) -> DocumentStructureSchema:
         analized_document_dict = {
             "id": doc_context.id,
             "link": doc_context.metadata["source"],
@@ -282,7 +297,7 @@ summary: """
         doc_summarizer_chain = (
             self.get_prompt(
                 prompt_prefix=self.get_summary_all_section_prompt_prefix(),
-                prompt_suffix=self.get_summary_all_section_prompt_prefix(),
+                prompt_suffix=self.get_summary_all_section_prompt_suffix(),
             )
             | self.get_llm()
             | StrOutputParser()
@@ -385,14 +400,24 @@ summary: """
         )
         return DocumentStructureSchema(**analized_document_dict)
 
-    def similarize_task(self, doc_context: Document):
-        return
+    def similarize_task(self, doc_context: Document) -> str:
+        doc_attr_analyizer_chain = (
+            self.get_prompt(
+                prompt_prefix=self.get_similarize_prompt_prefix(),
+                prompt_suffix=self.get_similarize_prompt_suffix(),
+            )
+            | self.get_llm()
+            | StrOutputParser()
+        )
+        similarities_summarization: str = doc_attr_analyizer_chain.invoke(
+            {
+                self.get_inputs()[self.PromptInputs.context.value]: doc_context,
+            }
+        )
+        return DocumentStructureSchema(summary=similarities_summarization)
 
     def compare_task(self, doc_context: Document):
         return
-
-    def construct_analysis_question(self, description: str) -> str:
-        return "provide me with " + description
 
 
 class DocumentAnalyizerPipelineLLM(DocumentAnalyizerLLM):
@@ -666,7 +691,9 @@ class DocumentAnalyizerHuggingFaceAPILLM(DocumentAnalyizerAPILLM):
         """
         return self.llm
 
-    def __call__(self, doc_context: str) -> DocumentStructureSchema:
+    def __call__(
+        self, doc_context: str, task: BaseDocumentAnalyizer.AnalyizingTask
+    ) -> DocumentStructureSchema:
         """
         **Process a document text using the LLM**
 
@@ -677,12 +704,12 @@ class DocumentAnalyizerHuggingFaceAPILLM(DocumentAnalyizerAPILLM):
         """
         result = None
         try:
-            result: DocumentStructureSchema = super().__call__(doc_context)
+            result: DocumentStructureSchema = super().__call__(doc_context, task=task)
         except HfHubHTTPError as e:
             if e is not None and "Rate" in e.server_message:
                 warnings.warn(f"{e}, waiting for 10 mins and recall")
                 time.sleep(60 * 10)
-                result = self.__call__(doc_context)
+                result = self.__call__(doc_context, task=task)
             else:
                 raise e
         return result

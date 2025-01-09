@@ -94,20 +94,25 @@ async def summarize_doc(
     document: Document = merge_pages_in_document(document_pages=document_pages)
     session_logger.info(f"Merged all pages into one document with id {document.id}")
 
-    session_logger.info("Start document analyizing")
-    document_structured_extraction: DocumentStructureSchema = document_analyizer(
-        doc_context=document
+    session_logger.info("Trying to retrieve structured document")
+    doc_structured_extraction: DocumentStructureSchema = (
+        database.get_structured_document_by_id(document_id=document.id)
     )
+    if doc_structured_extraction is None:
+        session_logger.info("Start document analyizing")
+        doc_structured_extraction: DocumentStructureSchema = document_analyizer(
+            doc_context=document, task=document_analyizer.AnalyizingTask.SUMMARY
+        )
     session_logger.info("Finished document analyizing")
     background_tasks.add_task(
         vectorstore.add_structured_document,
-        structured_document=document_structured_extraction,
+        structured_document=doc_structured_extraction,
     )
     background_tasks.add_task(
-        database.push_document, structured_document=document_structured_extraction
+        database.push_document, structured_document=doc_structured_extraction
     )
     background_tasks.add_task(session_logger.remove)
 
     return DocumentSummaryOutputSchema(
-        document_summary_extraction=document_structured_extraction
+        document_summary_extraction=doc_structured_extraction
     )

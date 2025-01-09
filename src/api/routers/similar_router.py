@@ -99,7 +99,7 @@ async def similar_doc(
 
         session_logger.info("Start document analyizing")
         structured_document: DocumentStructureSchema = document_analyizer(
-            doc_context=document
+            doc_context=document, task=document_analyizer.AnalyizingTask.SUMMARY
         )
         session_logger.info("Finished document analyizing")
         background_tasks.add_task(
@@ -109,7 +109,7 @@ async def similar_doc(
         background_tasks.add_task(
             database.push_document, structured_document=structured_document
         )
-    retrieved_docs = vectorstore.retrieve_similar_docs(
+    retrieved_docs: List[Document] = vectorstore.retrieve_similar_docs(
         document=Document(
             page_content=structured_document.model_dump()[
                 schema.similarity_category.value
@@ -120,9 +120,20 @@ async def similar_doc(
             BaseVectorstore.FilterMetadataKeys.TAG.value: schema.similarity_category.value
         },
     )
-    # print(structured_document)
-    print(retrieved_docs)
+    similarity_summarization = None
+    if schema.do_similarity_summary:
+        similarity_summarization = document_analyizer(
+            doc_context="\n\n".join(
+                [
+                    f"Paragragh {ii}:\n" + doc.page_content
+                    for ii, doc in enumerate(retrieved_docs, start=1)
+                ]
+            ),
+            task=document_analyizer.AnalyizingTask.SIMILAR,
+        ).summary
+
     background_tasks.add_task(session_logger.remove)
     return DocumentsSimilarityOutputSchema(
-        similar_papers_links=[doc.metadata["source"] for doc in retrieved_docs]
+        similar_papers_links=[doc.metadata["source"] for doc in retrieved_docs],
+        similarity_summarization=similarity_summarization,
     )
