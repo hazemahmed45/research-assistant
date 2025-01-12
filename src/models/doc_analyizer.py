@@ -218,6 +218,10 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
     def get_similarize_prompt_prefix(self):
         return "you are an expert data analyizer and you are instructed to summarize the similarities from the following paragraphs of the context and generate a paragraph illustrating the similarities\n\n"
 
+    def get_comparison_prompt_prefix(self):
+        return
+        # return "you are an expert data analyizer and you are instructed to summarize the similarities from the following paragraphs of the context and generate a paragraph illustrating the similarities\n\n"
+
     def get_summary_subsection_prompt_suffix(self):
         return """
 ##########################
@@ -362,6 +366,7 @@ similarities summarization: """
         ).replace('"', "")
         analized_document_dict["venue"] = analized_document_dict["venue"].split("\n")[0]
         analized_document_dict["repo"] = analized_document_dict["repo"].split("\n")[0]
+
         analized_document_dict["summary"] = remove_leading_endlines(
             doc_summarizer_chain.invoke(
                 {

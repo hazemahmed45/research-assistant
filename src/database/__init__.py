@@ -36,13 +36,13 @@ class DatabaseFactory:
                 username=db_settings.db_username,
                 password=db_settings.db_password,
             )
-        elif db_settings.db_type == DatabaseTypes.NOTION:
-            return MongoDB(
-                mongodb_url=db_settings.db_client,
-                database_name=db_settings.db_name,
-                username=db_settings.db_username,
-                password=db_settings.db_password,
-            )
+        # elif db_settings.db_type == DatabaseTypes.NOTION:
+        #     return MongoDB(
+        #         mongodb_url=db_settings.db_client,
+        #         database_name=db_settings.db_name,
+        #         username=db_settings.db_username,
+        #         password=db_settings.db_password,
+        #     )
         else:
             raise DatabaseTypeNotSupported(
                 f"{db_settings.db_type.value} is not supported in this repo"

@@ -74,15 +74,16 @@ class MongoDB(BaseDB):
         self, document_link: str
     ) -> DocumentStructureSchema:
         document_id = create_unique_id_from_str(str(document_link))
-        document_dict_dump = self.client[self.database_name][
-            self.CollectionNames.DOCUMENT_SUMMARIZATION_COLLECTION.value
-        ].find_one(filter={"id": document_id})
-        document_structure_extraction = None
-        if document_dict_dump is not None:
-            document_structure_extraction = DocumentStructureSchema(
-                **document_dict_dump
-            )
-        return document_structure_extraction
+        return self.get_structured_document_by_id(document_id=document_id)
+        # document_dict_dump = self.client[self.database_name][
+        #     self.CollectionNames.DOCUMENT_SUMMARIZATION_COLLECTION.value
+        # ].find_one(filter={"id": document_id})
+        # document_structure_extraction = None
+        # if document_dict_dump is not None:
+        #     document_structure_extraction = DocumentStructureSchema(
+        #         **document_dict_dump
+        #     )
+        # return document_structure_extraction
 
     def retrieve_structure_documents(
         self, documents_link: List[str]

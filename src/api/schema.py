@@ -25,11 +25,15 @@ class DocumentSummaryOutputSchema(BaseModel):
 
 
 class DocumentsComparisonInputSchema(BaseModel):
-    pass
+    links: List[AnyUrl] = Field(
+        default=[], description="links of documents to compare with each other"
+    )
 
 
 class DocumentsComparisonOutputSchema(BaseModel):
-    pass
+    document_summary_extraction: DocumentStructureSchema = Field(
+        description="detailed comparison between the summary extractions of all the paper to compare"
+    )
 
 
 class DocumentsSimilarityInputSchema(BaseModel):

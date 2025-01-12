@@ -97,12 +97,13 @@ class BaseVectorstore:
         topk=10,
         metadata: Dict[str, Any] = None,
     ) -> List[Document]:
+        if metadata is None:
+            metadata = {}
         retrieved_results: List[tuple[Document, float]] = (
             self._vector_store.similarity_search(
                 query=document.page_content, k=topk, filter=metadata
             )
         )
-        # print("HERE", retrieved_results)
         return [
             similar_doc
             for similar_doc in retrieved_results
@@ -136,7 +137,7 @@ class BaseVectorstore:
     def add_structured_document(self, structured_document: DocumentStructureSchema):
         structured_docs: List[Document] = [
             Document(
-                page_content=structured_document.challenges,
+                page_content=structured_document.model_dump()[tag.value],
                 metadata={
                     self.FilterMetadataKeys.SOURCE.value: str(structured_document.link),
                     self.FilterMetadataKeys.TAG.value: tag.value,
