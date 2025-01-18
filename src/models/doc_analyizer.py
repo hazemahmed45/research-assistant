@@ -7,6 +7,8 @@ utilizing different serving types and models.
 """
 
 from __future__ import annotations
+from ast import Dict
+import json
 import os
 import warnings
 from abc import abstractmethod
@@ -16,6 +18,7 @@ import time
 import datetime
 
 from dotenv import get_key as get_dotenv_key
+import arxiv
 from huggingface_hub.errors import HfHubHTTPError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
@@ -40,6 +43,11 @@ from src.enums import LLMModelCards, LLMServingType, Constants
 from src.misc.document_schema import DocumentStructureSchema
 
 from src.misc.utils import remove_punctuations, remove_leading_endlines
+
+
+ARXIV_CATEGORY_MAPPING: Dict[str, str] = json.load(
+    open(os.path.join("assets", "arxiv_category_mapping.json"), "r")
+)
 
 
 class DocumentAnalyizerSettings(BaseSettings):
@@ -162,6 +170,7 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
         super().__init__()
         self._arg_parameters = {}
         self._prompt_preprocessing = prompt_preprocessing
+        self.arxiv_client = arxiv.Client()
 
     def __call__(
         self,
@@ -210,17 +219,16 @@ class DocumentAnalyizerLLM(BaseDocumentAnalyizer):
         )
 
     def get_summary_subsection_prompt_prefix(self):
-        return "you are an expert data analyizer and you are instructed to extract the answer for following question given the following context\n\n"
+        return "you are an expert document analyizer and you are instructed to extract the answer for following question given the following context\n\n"
 
     def get_summary_all_section_prompt_prefix(self):
-        return "you are an expert data analyizer and you are instructed to summarize all the following contexts of a research paper in one paragraph summarizing all the important information\n\n"
+        return "you are an expert document analyizer and you are instructed to summarize all the following contexts of a research paper in one paragraph summarizing all the important information\n\n"
 
     def get_similarize_prompt_prefix(self):
-        return "you are an expert data analyizer and you are instructed to summarize the similarities from the following paragraphs of the context and generate a paragraph illustrating the similarities\n\n"
+        return "you are an expert document analyizer and you are instructed to summarize the similarities from the following contexts and generate a paragraph illustrating the similarities\n\n"
 
     def get_comparison_prompt_prefix(self):
-        return
-        # return "you are an expert data analyizer and you are instructed to summarize the similarities from the following paragraphs of the context and generate a paragraph illustrating the similarities\n\n"
+        return "you are an expert document analyizer and you are instructed to compare the following contexts and generate a summarized illustrative comparision\n\n"
 
     def get_summary_subsection_prompt_suffix(self):
         return """
@@ -252,6 +260,13 @@ summary: """
 context: {{context}}
 ##########################
 similarities summarization: """
+
+    def get_comparison_prompt_suffix(self):
+        return """
+##########################
+context: {{context}}
+##########################
+comparison summarization: """
 
     def construct_analysis_question(self, description: str) -> str:
         return "provide me with " + description
@@ -285,6 +300,28 @@ similarities summarization: """
             "id": doc_context.id,
             "link": doc_context.metadata["source"],
         }
+        paper_id = None
+        if os.path.exists(doc_context.metadata["source"]):
+            paper_id = doc_context.metadata["source"].split(os.path.sep)[-1]
+        else:
+            paper_id: str = doc_context.metadata["source"].split("/")[-1]
+        try:
+
+            paper = next(arxiv.Client().results(arxiv.Search(id_list=[paper_id])))
+            analized_document_dict["authors_name"] = [
+                author.name for author in paper.authors
+            ]
+            analized_document_dict["title"] = paper.title
+            analized_document_dict["publication_date"] = paper.published
+            analized_document_dict["venue"] = paper.journal_ref
+            analized_document_dict["categories"] = [
+                ARXIV_CATEGORY_MAPPING[cat] for cat in paper.categories
+            ]
+
+        except arxiv.HTTPError:
+            warnings.warn(
+                f"Paper with source {doc_context.metadata['source']} is not an arxiv paper"
+            )
 
         if self._prompt_preprocessing:
             doc_context.page_content = remove_punctuations(
@@ -310,6 +347,8 @@ similarities summarization: """
             "properties"
         ].items():
             if not any([attr_name == key for key in ["id", "link", "summary"]]):
+                if attr_name in analized_document_dict:
+                    continue
                 attr_desc = attr_metadata["description"]
                 question = self.construct_analysis_question(description=attr_desc)
 
@@ -337,34 +376,48 @@ similarities summarization: """
                         )
                     ]
                 analized_document_dict[attr_name] = analysis_res
-        try:
+        if not isinstance(
+            analized_document_dict["publication_date"], datetime.datetime
+        ):
             try:
-                analized_document_dict["publication_date"] = datetime.datetime.strptime(
-                    analized_document_dict["publication_date"]
-                    .split("\n")[0]
-                    .replace(".", ""),
-                    Constants.DATE_FORMAT.value,
-                )
-            except Exception:
-                warnings.warn(
-                    f"could not parse publication date to {Constants.DATE_FORMAT.value} format"
-                )
-                analized_document_dict["publication_date"] = datetime.datetime.strptime(
-                    analized_document_dict["publication_date"]
-                    .split("\n")[0]
-                    .replace(".", ""),
-                    Constants.ALTERNATIVE_DATE_FORMAT.value,
-                )
+                try:
+                    analized_document_dict["publication_date"] = (
+                        datetime.datetime.strptime(
+                            analized_document_dict["publication_date"]
+                            .split("\n")[0]
+                            .replace(".", ""),
+                            Constants.DATE_FORMAT.value,
+                        )
+                    )
+                except Exception:
+                    warnings.warn(
+                        f"could not parse publication date to {Constants.DATE_FORMAT.value} format"
+                    )
+                    analized_document_dict["publication_date"] = (
+                        datetime.datetime.strptime(
+                            analized_document_dict["publication_date"]
+                            .split("\n")[0]
+                            .replace(".", ""),
+                            Constants.ALTERNATIVE_DATE_FORMAT.value,
+                        )
+                    )
 
-        except:
-            warnings.warn(
-                f"could not parse publication date to {Constants.ALTERNATIVE_DATE_FORMAT.value} format, will set it to none"
-            )
-            analized_document_dict["publication_date"] = None
+            except:
+                warnings.warn(
+                    f"could not parse publication date to {Constants.ALTERNATIVE_DATE_FORMAT.value} format, will set it to none"
+                )
+                analized_document_dict["publication_date"] = None
+
         analized_document_dict["title"] = (
             analized_document_dict["title"].split("\n")[0]
         ).replace('"', "")
-        analized_document_dict["venue"] = analized_document_dict["venue"].split("\n")[0]
+        if (
+            "venue" in analized_document_dict.keys()
+            and analized_document_dict["venue"] != None
+        ):
+            analized_document_dict["venue"] = analized_document_dict["venue"].split(
+                "\n"
+            )[0]
         analized_document_dict["repo"] = analized_document_dict["repo"].split("\n")[0]
 
         analized_document_dict["summary"] = remove_leading_endlines(
@@ -405,7 +458,7 @@ similarities summarization: """
         )
         return DocumentStructureSchema(**analized_document_dict)
 
-    def similarize_task(self, doc_context: Document) -> str:
+    def similarize_task(self, doc_context: Document) -> DocumentStructureSchema:
         doc_attr_analyizer_chain = (
             self.get_prompt(
                 prompt_prefix=self.get_similarize_prompt_prefix(),
@@ -419,10 +472,27 @@ similarities summarization: """
                 self.get_inputs()[self.PromptInputs.context.value]: doc_context,
             }
         )
-        return DocumentStructureSchema(summary=similarities_summarization)
+        return DocumentStructureSchema(
+            summary=remove_leading_endlines(similarities_summarization)
+        )
 
-    def compare_task(self, doc_context: Document):
-        return
+    def compare_task(self, doc_context: Document) -> DocumentStructureSchema:
+        doc_attr_analyizer_chain = (
+            self.get_prompt(
+                prompt_prefix=self.get_comparison_prompt_prefix(),
+                prompt_suffix=self.get_comparison_prompt_suffix(),
+            )
+            | self.get_llm()
+            | StrOutputParser()
+        )
+        comparison_summarization: str = doc_attr_analyizer_chain.invoke(
+            {
+                self.get_inputs()[self.PromptInputs.context.value]: doc_context,
+            }
+        )
+        return DocumentStructureSchema(
+            summary=remove_leading_endlines(comparison_summarization)
+        )
 
 
 class DocumentAnalyizerPipelineLLM(DocumentAnalyizerLLM):

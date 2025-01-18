@@ -73,7 +73,10 @@ class DocumentStructureSchema(BaseModel):
     )
     domain: List[str] | None = Field(
         default=[],
-        description="the domain of the paper, which identify the specific area or field of study to which the research belongs. It represents the subject matter, discipline, or context in which the research is conducted and where it contributes new knowledge.usally the domain and tags of the study can be extracted or directly specified in the abstraction, also this should be listed as a list seperated by commas and finished by and endline",
+        description="the tags that was set for the paper, which identify the specific area or field of study to which the research belongs. It represents the subject matter, discipline, or context in which the research is conducted and where it contributes new knowledge.usally the domain and tags of the study can be extracted or directly specified in the abstraction, also this should be listed as a list seperated by commas and finished by and endline",
+    )
+    categories: List[str] | None = Field(
+        default=[], description="the categories assign to the study if there is any"
     )
     motivation: str | None = Field(
         default="",

@@ -36,7 +36,6 @@ from src.misc.create_unique_id import create_unique_user_id
 from src.misc.utils import merge_pages_in_document
 from src.enums import Constants
 
-# REQUEST_TYPE = "sim-doc"
 
 api_settings = ApiSettings()
 sim_doc_router = APIRouter()
@@ -125,7 +124,7 @@ async def similar_doc(
         similarity_summarization = document_analyizer(
             doc_context="\n\n".join(
                 [
-                    f"Paragragh {ii}:\n" + doc.page_content
+                    f"Context {ii}:\n" + doc.page_content
                     for ii, doc in enumerate(retrieved_docs, start=1)
                 ]
             ),

@@ -36,7 +36,6 @@ from src.misc.create_unique_id import create_unique_user_id
 from src.misc.utils import merge_pages_in_document
 from src.enums import Constants
 
-# REQUEST_TYPE = "comp-doc"
 
 api_settings = ApiSettings()
 comp_doc_router = APIRouter()
@@ -86,12 +85,12 @@ async def compare_doc(
 
     # TODO IMPLEMENT COMPARE DOCUMENTS ROUTE
     structured_docs: List[DocumentStructureSchema] = []
-    for i in range(len(schema.links)):
+    for ii, paper_link in enumerate(schema.links):
         structured_doc: Union[DocumentStructureSchema, None] = (
-            database.get_structured_document_by_link(document_link=str(schema.link))
+            database.get_structured_document_by_link(document_link=str(paper_link))
         )
-        if structured_document == None:
-            pdf_loader = PyPDFLoader(file_path=schema.link)
+        if structured_doc == None:
+            pdf_loader = PyPDFLoader(file_path=paper_link)
             document_pages: List[Document] = pdf_loader.load()
             session_logger.info(f"Loaded {len(document_pages)} pages")
             document: Document = merge_pages_in_document(document_pages=document_pages)
@@ -101,18 +100,28 @@ async def compare_doc(
             )
 
             session_logger.info("Start document analyizing")
-            structured_document: DocumentStructureSchema = document_analyizer(
-                doc_context=document, task=document_analyizer.AnalyizingTask.COMPARE
+            structured_doc: DocumentStructureSchema = document_analyizer(
+                doc_context=document, task=document_analyizer.AnalyizingTask.SUMMARY
             )
             session_logger.info("Finished document analyizing")
             background_tasks.add_task(
                 vectorstore.add_structured_document,
-                structured_document=structured_document,
+                structured_document=structured_doc,
             )
             background_tasks.add_task(
-                database.push_document, structured_document=structured_document
+                database.push_document, structured_document=structured_doc
             )
         structured_docs.append(structured_doc)
-
+    comparison_summarization = document_analyizer(
+        doc_context="\n\n".join(
+            [
+                f"Context {ii}:\n" + doc.model_dump()[schema.comparison_category.value]
+                for ii, doc in enumerate(structured_docs, start=1)
+            ]
+        ),
+        task=document_analyizer.AnalyizingTask.COMPARE,
+    ).summary
     background_tasks.add_task(session_logger.remove)
-    return DocumentsComparisonOutputSchema()
+    return DocumentsComparisonOutputSchema(
+        comparison_summarization=comparison_summarization
+    )

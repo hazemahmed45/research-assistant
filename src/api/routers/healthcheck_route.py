@@ -18,7 +18,6 @@ from src.misc.logger_handlers import FileHandler
 from src.misc.create_unique_id import create_unique_user_id
 from src.enums import Constants
 
-# REQUEST_TYPE = "healthcheck"
 
 settings = ApiSettings()
 healthcheck_router = APIRouter()

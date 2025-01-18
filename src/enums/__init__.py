@@ -111,7 +111,7 @@ class Constants(Enum):
     ALTERNATIVE_DATE_FORMAT = "%Y-%m-%d"
 
 
-class SimilarityCategories(Enum):
+class DocumentExtractionCategories(Enum):
     PUBLICATION_DATE = "publication_date"
     SUMMARY = "summary"
     CONTRIBUTION = "contribution"

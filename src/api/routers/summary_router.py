@@ -37,7 +37,6 @@ from src.misc.create_unique_id import create_unique_user_id
 from src.misc.utils import merge_pages_in_document
 from src.enums import Constants
 
-REQUEST_TYPE = "sum-doc"
 
 api_settings = ApiSettings()
 sum_doc_router = APIRouter()
@@ -60,7 +59,7 @@ vectorstore: BaseVectorstore = factory_results[
 database: BaseDB = SingletonDatabaseFactory.build(db_settings=DBSettings())
 
 
-@sum_doc_router.post("/sum_doc", tags=[Constants.SUMMARIZE_DOCUMNET_TAG.name])
+@sum_doc_router.post("/sum_doc", tags=[Constants.SUMMARIZE_DOCUMNET_TAG.value])
 async def summarize_doc(
     schema: DocumentSummaryInputSchema,
     background_tasks: BackgroundTasks,
